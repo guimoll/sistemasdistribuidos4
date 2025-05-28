@@ -5,14 +5,15 @@ class HospitalTrauma(Hospital):
         super().__init__(
             name=name,
             max_capacity=max_capacity,
-            specialties=['trauma', 'emergency', 'surgery']
+            specialties=['trauma', 'emergency', 'surgery'],
+            address="R. Floriano Peixoto, 300 - Centro, Blumenau - SC, 89010-906"
         )
 
     def start_consuming(self):
         self.queue_manager.channel.basic_consume(
             queue='vermelho',
             on_message_callback=self.callback,
-            auto_ack=True
+            auto_ack=False
         )
         print(f'{self.name} started consuming trauma (vermelho) messages. To exit press CTRL+C')
         try:

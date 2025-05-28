@@ -2,7 +2,7 @@ import json
 from queuemanager import QueueManager
 
 class Hospital:
-    def __init__(self, name, max_capacity, specialties=None):
+    def __init__(self, name, max_capacity,address, specialties=None):
         self.name = name
         self.max_capacity = max_capacity
         self.current_patients = 0
@@ -13,13 +13,14 @@ class Hospital:
             'amarelo': [],
             'verde': []
         }
+        self.address = address
 
     def can_accept_patient(self, priority):
         if priority == 'vermelho':
             return 'trauma' in self.specialties and self.current_patients < self.max_capacity
         elif priority == 'amarelo':
             return self.current_patients < self.max_capacity
-        else:  # verde
+        else:
             return self.current_patients < self.max_capacity
 
     def add_patient(self, patient_data):
@@ -41,23 +42,23 @@ class Hospital:
         try:
             patient_data = json.loads(body.decode())
             print(f" [x] Received from {method.routing_key}: {patient_data}")
-            print(properties)
 
             if self.add_patient(patient_data):
                 print(
                     f"Hospital {self.name} accepted patient. Current capacity: {self.current_patients}/{self.max_capacity}")
+                ch.basic_ack(delivery_tag=method.delivery_tag)
 
-                # Send hospital address to the reply queue
                 if properties.reply_to:
-                    address = "123 Hospital Street"
                     self.queue_manager.channel.basic_publish(
                         exchange='',
                         routing_key=properties.reply_to,
-                        body=json.dumps({"address": address})
+                        body=json.dumps({"address": self.address})
                     )
             else:
                 print(
                     f"Hospital {self.name} cannot accept patient. Current capacity: {self.current_patients}/{self.max_capacity}")
+                ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
+                self.queue_manager.channel.stop_consuming()
         except json.JSONDecodeError:
             print(f"Error decoding message: {body.decode()}")
 
@@ -66,7 +67,7 @@ class Hospital:
             self.queue_manager.channel.basic_consume(
                 queue=queue,
                 on_message_callback=self.callback,
-                auto_ack=True
+                auto_ack=False
             )
         print(f'Hospital {self.name} started consuming messages. To exit press CTRL+C')
         try:

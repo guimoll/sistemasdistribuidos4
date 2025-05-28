@@ -1,3 +1,5 @@
+import ssl
+
 import pika
 
 
@@ -5,9 +7,21 @@ class QueueManager:
     _connections = []
 
     def __init__(self, queue_name='hello'):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        context = ssl.create_default_context(cafile='C:/Users/riley/PycharmProjects/PythonProject2/certs/ca.crt')
+        context.load_cert_chain(
+            certfile='C:/Users/riley/PycharmProjects/PythonProject2/certs/client.crt',
+            keyfile='C:/Users/riley/PycharmProjects/PythonProject2/certs/client.key'
+        )
+        ssl_options = pika.SSLOptions(context, 'localhost')
+        self.connection = pika.BlockingConnection(
+            pika.ConnectionParameters(
+                host='localhost',
+                port=5671,
+                ssl_options=ssl_options
+            )
+        )
         self.channel = self.connection.channel()
-        self.queue_name = queue_name
+
         for q in ['vermelho', 'amarelo', 'verde']:
             self.channel.queue_declare(queue=q)
         QueueManager._connections.append(self.connection)
